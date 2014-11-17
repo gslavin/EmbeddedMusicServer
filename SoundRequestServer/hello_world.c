@@ -35,28 +35,28 @@ static int write_to_fifo(const char * cmd) {
     return rv;
 }
 
-static void parse_content(char * mesg, state_t * state) {
+static void parse_content(char * mesg, size_t length, state_t * state) {
     /* only the first line of the content is needed for now */
     /* chord=G&is_playing=1 */
     /* parse the key value pairs */
-    char * end;
     char * key, * value;
     char * args[2];
     int i;
-
-    end = strchr(mesg, '\n');
-    end[0] = '\0';
+    mesg[length] = '\0';
     printf("State Update request: %s\n", mesg);
     args[0] = strtok(mesg, "&");
     args[1] = strtok(NULL, "&");
     for(i = 0; i < 2; i++) {
+        if (args[i] == NULL) {
+            continue;
+        }
         key = strtok(args[i], "=");
         value = strtok(NULL, "=");
         if (strcmp("chord",key) == 0) {
             strcpy(state->chord, value);
         }
         else if (strcmp("is_playing",key) == 0) {
-            state->is_playing = atoi(value);
+            state->is_playing = *value == 't'? 1 : 0;
         }
     }
 }
@@ -70,7 +70,7 @@ static int ev_handler(struct mg_connection *conn, enum mg_event ev) {
     case MG_REQUEST:
         if (strcmp("/state", conn->uri) == 0) {
             if(strcmp("POST", conn->request_method) == 0) {
-                parse_content(conn->content, &state);
+                parse_content(conn->content, conn->content_len, &state);
                 printf("State Updated: %d, %s\n", state.is_playing, state.chord);
                 mg_printf_data(conn, "%d,%s", state.is_playing, state.chord);
             }
