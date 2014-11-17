@@ -1,0 +1,2 @@
+mongoose server writes to fifo on requests
+fifo is read by music daemon
