@@ -9,12 +9,46 @@
 #include<string.h>
 
 #define FIFO_PATH "/home/thomas/EmbSysFinal/music_commands"
+#define DEBUG 1
+#define MAX_THREADS 2
+#define SLEEP_TIME 0.5
+
+typedef enum {
+    START,
+    STOP,
+    STOP_ALL
+} control_t;
+
+typedef enum {
+    A_MAJ,
+    B_MAJ,
+    C_MAJ,
+    D_MAJ,
+    E_MAJ,
+    F_MAJ,
+    G_MAJ
+} chord_t;
+
+typedef struct thread_list {
+    long thread_ids[MAX_THREADS];
+    int count;
+} thread_list;
+
+typedef struct cmd_t {
+    control_t control;
+    chord_t chord;
+} cmd_t;
 
 void post_to_log(char * msg)
 {
     openlog("MUSIC DAEMON: ", LOG_PID, LOG_USER);
     syslog(LOG_INFO, "Just checking in: %s", msg);
     closelog();
+}
+
+void parse_message(char * buffer, cmd_t * cmd)
+{
+         
 }
 
 int main(void)
@@ -64,9 +98,12 @@ int main(void)
             rv = fscanf(fifo, "%s", buffer);
             fclose(fifo);
             if (rv == 1) {
+                #if DEBUG
                 post_to_log(buffer);
+                #endif
+                //parse_message();
             }
         }
-        sleep(3);
+        sleep(SLEEP_TIME);
     }
 }
