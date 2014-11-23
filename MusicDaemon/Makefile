@@ -1,9 +1,9 @@
 # Copyright (c) 2014 Cesanta Software
 # All rights reserved
 
-PROG = hello_world
-CFLAGS = -W -Wall -I../.. -pthread -g -O0 $(CFLAGS_EXTRA)
-SOURCES = $(PROG).c ../../mongoose.c
+PROG = music_daemon
+CFLAGS = -W -Wall -I../SoundRequestServer -pthread -g -O0 $(CFLAGS_EXTRA)
+SOURCES = $(PROG).c 
 
 all: $(PROG)
 

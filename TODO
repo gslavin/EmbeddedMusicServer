@@ -1,2 +1,2 @@
-mongoose server writes to fifo on requests
-fifo is read by music daemon
+make music_daemon create thread for each tone sequency
+kills thread if stop signal is send

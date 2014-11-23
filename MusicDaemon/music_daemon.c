@@ -7,8 +7,8 @@
 #include<unistd.h>
 #include<syslog.h>
 #include<string.h>
+#include "sound_server.h"
 
-#define FIFO_PATH "/home/thomas/EmbSysFinal/music_commands"
 #define DEBUG 1
 #define MAX_THREADS 2
 #define SLEEP_TIME 0.5
@@ -39,16 +39,44 @@ typedef struct cmd_t {
     chord_t chord;
 } cmd_t;
 
-void post_to_log(char * msg)
+void post_state_to_log(state_t * state)
 {
     openlog("MUSIC DAEMON: ", LOG_PID, LOG_USER);
-    syslog(LOG_INFO, "Just checking in: %s", msg);
+    syslog(LOG_INFO, "ID: %d Control: %s, Chord: %s"
+        ,state->id, state->control, state->chord);
     closelog();
 }
 
+void post_to_log(char * msg)
+{
+    openlog("MUSIC DAEMON: ", LOG_PID, LOG_USER);
+    syslog(LOG_INFO, "%s", msg);
+    closelog();
+}
+
+#if 0
 void parse_message(char * buffer, cmd_t * cmd)
 {
-         
+     
+}
+#endif
+
+int read_fifo(state_t * state)
+{
+    FILE * fifo = fopen(FIFO_PATH, "rb");
+    int rv = 0;
+    int items_read = 0;
+    if (fifo != NULL) {
+        items_read = 
+            fread(state, sizeof(state_t), 1, fifo);
+        rv = (items_read == 0) ? 1 : 0;
+    }
+    else {
+        rv = 1;
+    }
+    fclose(fifo);
+
+    return rv;
 }
 
 int main(void)
@@ -56,9 +84,10 @@ int main(void)
     
     /* Process and session ID */
     pid_t pid, sid;
-    FILE * fifo;
-    char buffer[200];
-    int rv = 0;
+    state_t * state = NULL;
+    if ((state = malloc(sizeof(state_t))) == NULL) {
+        exit(EXIT_FAILURE);
+    }
 
     /* Fork from parent process */
     pid = fork();
@@ -93,17 +122,15 @@ int main(void)
     /* Daemon initialization */
     while (1) {
         /* read fifo and post to log */
-        fifo = fopen(FIFO_PATH, "r");
-        if (fifo != NULL) {
-            rv = fscanf(fifo, "%s", buffer);
-            fclose(fifo);
-            if (rv == 1) {
-                #if DEBUG
-                post_to_log(buffer);
-                #endif
-                //parse_message();
-            }
+        if (read_fifo(state)) {
+            post_to_log("error reading fifo");
         }
+        else {
+            post_state_to_log(state);
+        }
+        //parse_message();
         sleep(SLEEP_TIME);
     }
+
+    return 0;
 }

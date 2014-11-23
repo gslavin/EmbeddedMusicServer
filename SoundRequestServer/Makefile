@@ -2,7 +2,7 @@
 # All rights reserved
 
 
-PROG = hello_world
+PROG = sound_server
 CFLAGS = -W -Wall -pthread -g -O0 $(CFLAGS_EXTRA)
 SOURCES = $(PROG).c mongoose.c
 
