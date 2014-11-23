@@ -2,7 +2,7 @@
 # All rights reserved
 
 PROG = music_daemon
-CFLAGS = -W -Wall -I../SoundRequestServer -pthread -g -O0 $(CFLAGS_EXTRA)
+CFLAGS = -W -Wall -I../SoundRequestServer -pthread -g -O0 -lm $(CFLAGS_EXTRA)
 SOURCES = $(PROG).c 
 
 all: $(PROG)

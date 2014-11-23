@@ -63,7 +63,6 @@ state_t * get_state(char ip[48], unsigned short port, conn_list_t ** conns)
     conn_list_t * new_node;
     static int current_id = 0;
     for(p = *conns; p != NULL; p = p->next) {
-        printf("cmp yields%d\n",memcmp(ip,p->ip, sizeof(p->ip)));
         if ((memcmp(ip,p->ip, sizeof(p->ip)) == 0)) {
             printf("Connection found\n");
             return &(p->state);

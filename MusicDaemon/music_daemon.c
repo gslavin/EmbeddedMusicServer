@@ -7,6 +7,8 @@
 #include<unistd.h>
 #include<syslog.h>
 #include<string.h>
+#include<pthread.h>
+#include<math.h>
 #include "sound_server.h"
 
 #define DEBUG 0
@@ -20,12 +22,17 @@ typedef enum {
 } control_t;
 
 typedef enum {
-    A_MAJ,
+    /* piano key number of middle A */
+    A_MAJ = 49,
+    B_FLAT_MAJ,
     B_MAJ,
     C_MAJ,
+    C_SHARP_MAJ,
     D_MAJ,
+    D_SHARP_MAJ,
     E_MAJ,
     F_MAJ,
+    F_SHARP_MAJ,
     G_MAJ
 } chord_t;
 
@@ -36,7 +43,7 @@ typedef struct cmd_t {
 
 typedef struct user_info {
     int id;
-    long thread_id;
+    pthread_t thread;
     int valid_thread;
     cmd_t cmd;
 } user_info;
@@ -45,7 +52,6 @@ typedef struct user_list {
     user_info user;
     struct user_list * next;
 } user_list;
-
 
 void post_state_to_log(state_t * state)
 {
@@ -118,7 +124,7 @@ user_info * find_user(int id, user_list ** users)
     /* create new user */
     new_node = malloc(sizeof(user_list));
     new_node->user.id = id;
-    new_node->user.thread_id = 0;
+    new_node->user.thread = 0;
     new_node->user.valid_thread = 0;
     new_node->user.cmd.control = STOP;
     new_node->user.cmd.chord = G_MAJ;
@@ -130,6 +136,27 @@ user_info * find_user(int id, user_list ** users)
     }
 
     return &(new_node->user);
+}
+
+static int get_freq(int note)
+{
+   return pow(2.0, (note-40)/12.0)*440;
+}
+
+void play_tone(chord_t chord) {
+    int root, fifth;
+    double root_freq, fifth_freq;
+    root = (chord_t)chord;
+    syslog(LOG_INFO, "Root is %d", root);
+    fifth = root + 7;
+    /* Piano Note to frequency */
+    root_freq = get_freq(root);
+    fifth_freq= get_freq(fifth);
+    char buffer[200];
+    sprintf(buffer, "play -q -n synth 5 sine %f sine %f gain -10.0",
+            root_freq, fifth_freq);
+    system(buffer);
+    //pthread_exit(NULL);
 }
 
 void run_user_cmd(user_info * user, cmd_t * cmd)
@@ -148,6 +175,7 @@ void run_user_cmd(user_info * user, cmd_t * cmd)
         /* run new command */
         memcpy(&(user->cmd), cmd, sizeof(cmd_t));
         /* start new thread */
+        play_tone(user->cmd.chord);
 
         /* set thread as valid */
         user->valid_thread = 1;
