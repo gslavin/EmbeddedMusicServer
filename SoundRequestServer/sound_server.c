@@ -59,6 +59,7 @@ static void parse_content(char * mesg, size_t length, state_t * state) {
 state_t * get_state(char ip[48], unsigned short port, conn_list_t ** conns)
 {   
     conn_list_t * p;
+    conn_list_t * q;
     conn_list_t * new_node;
     static int current_id = 0;
     for(p = *conns; p != NULL; p = p->next) {
@@ -67,6 +68,7 @@ state_t * get_state(char ip[48], unsigned short port, conn_list_t ** conns)
             printf("Connection found\n");
             return &(p->state);
         }
+        q = p;
     }
     new_node = malloc(sizeof(conn_list_t));
     memcpy(new_node->ip, ip, 48);
@@ -79,7 +81,7 @@ state_t * get_state(char ip[48], unsigned short port, conn_list_t ** conns)
         *conns = new_node;
     }
     else {
-        p->next = new_node;
+        q->next = new_node;
     }
 
     return &(new_node->state);
