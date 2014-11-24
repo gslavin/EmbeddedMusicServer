@@ -22,8 +22,8 @@ typedef enum {
 } control_t;
 
 typedef enum {
-    /* piano key number of middle A */
-    A_MAJ = 49,
+    /* piano key number of middle A - 2 octaves */
+    A_MAJ = 25,
     B_FLAT_MAJ,
     B_MAJ,
     C_MAJ,
@@ -44,6 +44,7 @@ typedef struct cmd_t {
 typedef struct user_info {
     int id;
     pthread_t thread;
+    pthread_mutex_t lock;
     int valid_thread;
     cmd_t cmd;
 } user_info;
@@ -87,6 +88,18 @@ void parse_state(state_t * state, cmd_t * cmd)
     else if (strcmp(state->chord, "b") == 0) {
         cmd->chord = B_MAJ;
     }
+    else if (strcmp(state->chord, "c") == 0) {
+        cmd->chord = C_MAJ;
+    }
+    else if (strcmp(state->chord, "d") == 0) {
+        cmd->chord = D_MAJ;
+    }
+    else if (strcmp(state->chord, "e") == 0) {
+        cmd->chord = E_MAJ;
+    }
+    else if (strcmp(state->chord, "f") == 0) {
+        cmd->chord = F_MAJ;
+    }
     else if (strcmp(state->chord, "g") == 0) {
         cmd->chord = G_MAJ;
     }
@@ -126,6 +139,7 @@ user_info * find_user(int id, user_list ** users)
     new_node->user.id = id;
     new_node->user.thread = 0;
     new_node->user.valid_thread = 0;
+    pthread_mutex_init(&(new_node->user.lock), NULL);
     new_node->user.cmd.control = STOP;
     new_node->user.cmd.chord = G_MAJ;
     if (*users == NULL) {
@@ -138,50 +152,78 @@ user_info * find_user(int id, user_list ** users)
     return &(new_node->user);
 }
 
+int must_quit(pthread_mutex_t * lock)
+{
+    /* a free lock is the signal to quit */
+    switch(pthread_mutex_trylock(lock)) {
+        case 0:
+            pthread_mutex_unlock(lock);
+            return 1;
+        case EBUSY:
+            return 0;
+    }
+    return 1;
+}
+
 static int get_freq(int note)
 {
    return pow(2.0, (note-40)/12.0)*440;
 }
 
-void play_tone(chord_t chord) {
+void * play_tone(void * user) {
+    pthread_mutex_t * lock  = (pthread_mutex_t * )&(((user_info *)user)->lock);
+    cmd_t cmd = (cmd_t)((user_info *)user)->cmd;
     int root, fifth;
     double root_freq, fifth_freq;
-    root = (chord_t)chord;
-    syslog(LOG_INFO, "Root is %d", root);
+    /* allows the thread to be canceled mid play */
+    root = (chord_t)cmd.chord;
     fifth = root + 7;
     /* Piano Note to frequency */
     root_freq = get_freq(root);
     fifth_freq= get_freq(fifth);
     char buffer[200];
-    sprintf(buffer, "play -q -n synth 5 sine %f sine %f gain -10.0",
+    sprintf(buffer, "play -q -n synth 1 sine %f sine %f gain -10.0",
             root_freq, fifth_freq);
-    system(buffer);
-    //pthread_exit(NULL);
+    while (!must_quit(lock)) {
+        system(buffer);
+    }
+    pthread_exit(NULL);
 }
 
 void run_user_cmd(user_info * user, cmd_t * cmd)
 {
-    /* if smae command do nothing */
+    int rc;
+    /* if same command do nothing */
     if (memcmp(&(user->cmd), cmd, sizeof(cmd_t)) == 0) {
         syslog(LOG_INFO, "COMMAND the same");
-        return;
     }
     else {
         /* stop thread if running*/
         if (user->valid_thread) {
             /* stop thread */
+            /* TODO: freeing of lock doesn't seem to effect thread */
+
+            if (pthread_mutex_unlock(&(user->lock))) {
+                syslog(LOG_INFO, "LOCK FREE FAILED");
+            }
+            pthread_join(user->thread, NULL);
             user->valid_thread = 0;
         }
-        /* run new command */
+        /* copy new command */
         memcpy(&(user->cmd), cmd, sizeof(cmd_t));
-        /* start new thread */
-        play_tone(user->cmd.chord);
-
-        /* set thread as valid */
-        user->valid_thread = 1;
+        if (user->cmd.control == START) {
+            /* start new thread */
+            pthread_mutex_lock(&(user->lock));
+            rc = pthread_create(&(user->thread), NULL, play_tone, (void *) user);
+            if (rc) {
+                syslog(LOG_INFO, "ERROR: return code %d\n", rc);
+                return;
+            }
+            /* set thread as valid */
+            user->valid_thread = 1;
+        }
         syslog(LOG_INFO, "COMMAND changed");
     }
-
 }
 int main(void)
 {
@@ -243,7 +285,6 @@ int main(void)
             user = find_user(state->id, &users);
             run_user_cmd(user, cmd);
         }
-        //parse_message();
         sleep(SLEEP_TIME);
     }
 

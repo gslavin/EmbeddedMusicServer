@@ -109,6 +109,7 @@ static int ev_handler(struct mg_connection *conn, enum mg_event ev) {
                     mg_printf_data(conn, "%s,%s", state->control, state->chord);
                 }
             }
+            /* If not POST handle as GET */
             else { 
                 printf("State Requested\n");
                 mg_printf_data(conn, "%s,%s", state->control, state->chord);
